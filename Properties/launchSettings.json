@@ -1,0 +1,11 @@
+{
+  "profiles": {
+    "paytax.erie.gov_scraper": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      },
+      "dotnetRunMessages": true
+    }
+  }
+}
