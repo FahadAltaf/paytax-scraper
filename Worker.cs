@@ -17,9 +17,9 @@ public class Worker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        List<DataModel> entries =await GetData();
-        _logger.LogInformation("Entries to process are "+entries.Count);
-        
+        List<DataModel> entries = await GetData();
+        _logger.LogInformation("Entries to process are " + entries.Count);
+
         var browserFetcher = new BrowserFetcher();
         await browserFetcher.DownloadAsync(BrowserFetcher.DefaultChromiumRevision);
 
@@ -30,10 +30,10 @@ public class Worker : BackgroundService
             int index = count - 1;
             var data = entries.Skip(index * 10).Take(10).ToList();
 
-            Task newTask = Task.Factory.StartNew(() => {  Scrape(data).Wait(); });
+            Task newTask = Task.Factory.StartNew(() => { Scrape(data).Wait(); });
             tasks.Add(newTask);
 
-            if (count % 5 == 0 || count == pages)
+            if (count % 10 == 0 || count == pages)
             {
                 foreach (Task task in tasks)
                 {
@@ -54,8 +54,8 @@ public class Worker : BackgroundService
         try
         {
             string url = "https://paytax.erie.gov/(S(tsuym4i1s14qiuyp2z1fequh))/WebPortal/WEB_PT_MAIN.aspx?command=";
-       
-           
+
+
             var browser = await Puppeteer.LaunchAsync(new LaunchOptions
             {
                 DefaultViewport = null,
@@ -89,8 +89,10 @@ public class Worker : BackgroundService
                     doc.LoadHtml(html);
 
                     var table = doc.DocumentNode.SelectSingleNode("//*[@id=\"objWP_reportparameterstyle_ESearchManager1_Web_CO_SearchPanel1_grdResult\"]/tbody");
-                    if (table != null && table.ChildNodes.Where(x => x.Name == "tr").Count() > 0)
+                    if (table != null && table.ChildNodes.Where(x => x.Name == "tr").Count() >= 2)
                     {
+                        if (table.ChildNodes.Where(x => x.Name == "tr").Count() > 2)
+                            await page.ClickAsync("#objWP_reportparameterstyle_ESearchManager1_Web_CO_SearchPanel1_grdResult_ctl02_chkSelect");
                         await page.ClickAsync("#objWP_reportparameterstyle_ESearchManager1_cmdFinish");
                         await page.WaitForTimeoutAsync(3500);
 
@@ -138,6 +140,7 @@ public class Worker : BackgroundService
                         }
 
                     }
+
                     else
                     {
                         entry.Status = DataStatus.Error;
@@ -153,7 +156,7 @@ public class Worker : BackgroundService
                 await Update(entry);
 
             }
-            
+            await browser.CloseAsync();
         }
         catch (Exception ex)
         {
@@ -167,17 +170,17 @@ public class Worker : BackgroundService
         var client = new MongoClient(Environment.GetEnvironmentVariable("DbConnectionString"));
         var db = client.GetDatabase("jhon-automations");
         var collection = db.GetCollection<DataModel>("paytax");
-      var data=  await collection.Find(_ => true).Limit(20000).ToListAsync();
-        data = data.Where(x=>x.Status!= DataStatus.Processed).ToList();
+        var data = await collection.Find(_ => true).Skip(80000).Limit(20000).ToListAsync();
+        data = data.Where(x => x.Status != DataStatus.Processed).ToList();
         return data;
     }
-        public async Task SaveData(List<DataModel> entries)
+    public async Task SaveData(List<DataModel> entries)
     {
         var client = new MongoClient(Environment.GetEnvironmentVariable("DbConnectionString"));
         var db = client.GetDatabase("jhon-automations");
         var collection = db.GetCollection<DataModel>("paytax");
 
-      await  collection.InsertManyAsync(entries);
+        await collection.InsertManyAsync(entries);
 
         //var filter = Builders<NewJerseyAnnualReport>.Filter.Eq(x => x.Id, entry.Id);
         //var update = Builders<NewJerseyAnnualReport>.Update
