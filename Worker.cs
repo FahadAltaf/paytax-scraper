@@ -33,7 +33,7 @@ public class Worker : BackgroundService
             Task newTask = Task.Factory.StartNew(() => {  Scrape(data).Wait(); });
             tasks.Add(newTask);
 
-            if (count % 5 == 0 || count == pages)
+            if (count % 10 == 0 || count == pages)
             {
                 foreach (Task task in tasks)
                 {
@@ -153,6 +153,7 @@ public class Worker : BackgroundService
                 await Update(entry);
 
             }
+          await  browser.CloseAsync();
             
         }
         catch (Exception ex)
@@ -167,7 +168,7 @@ public class Worker : BackgroundService
         var client = new MongoClient(Environment.GetEnvironmentVariable("DbConnectionString"));
         var db = client.GetDatabase("jhon-automations");
         var collection = db.GetCollection<DataModel>("paytax");
-      var data=  await collection.Find(_ => true).Limit(20000).ToListAsync();
+      var data=  await collection.Find(_ => true).Skip(30000).Limit(50000).ToListAsync();
         data = data.Where(x=>x.Status!= DataStatus.Processed).ToList();
         return data;
     }
